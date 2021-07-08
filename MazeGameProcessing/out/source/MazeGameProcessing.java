@@ -18,78 +18,128 @@ public class MazeGameProcessing extends PApplet {
 Wall[] daWalls = new Wall[2];
 int[] gameBounds = {100,350,600,100};
 Goal theGoal;
+int moveCounter;
 
 Player player;
+Player ai;
 
 
 public void setup()
 {
-  
-  background(100);
-  daWalls[0] = new Wall(0,150,3,1);
-  daWalls[1] = new Wall(50,300,4,1);
+    
+    background(100);
+    daWalls[0] = new Wall(0,150,3,1);
+    daWalls[1] = new Wall(50,300,4,1);
 
-  theGoal = new Goal(100,0);
+    theGoal = new Goal(100,0);
+    moveCounter = 0;
 
-  player = new Player(150,400);
+    player = new Player(150,400,76,145,156);
+    ai = new Player(150,400,76,0,156);
 }
 
 public void draw()
 {
-  background(100);
+    background(100);
 
-  //draw the boundaries
-  fill(50);
-  rect(50,50,350,600);
-  fill(100);
-  rect(100,100,250,500);
+    //Draw static text
+    textSize(20);
+    text("Move # "+moveCounter,50,40);
+    text("Position 0: "+player.checkPositionValid(player.xPos,player.yPos-50)+" "+calculateDistance(player.xPos,player.yPos-50,theGoal.x+gameBounds[3],theGoal.y+gameBounds[0])/50,425,70);
+    text("Position 1: "+player.checkPositionValid(player.xPos+50,player.yPos)+" "+calculateDistance(player.xPos+50,player.yPos,theGoal.x+gameBounds[3],theGoal.y+gameBounds[0])/50,425,90);
+    text("Position 2: "+player.checkPositionValid(player.xPos,player.yPos+50)+" "+calculateDistance(player.xPos,player.yPos+50,theGoal.x+gameBounds[3],theGoal.y+gameBounds[0])/50,425,110);
+    text("Position 3: "+player.checkPositionValid(player.xPos-50,player.yPos)+" "+calculateDistance(player.xPos-50,player.yPos,theGoal.x+gameBounds[3],theGoal.y+gameBounds[0])/50,425,130);
 
-  //draw the walls
-  for(int i = 0; i < daWalls.length; i++)
-  {
-    daWalls[i].draw();
-  }
+    //draw the boundaries
+    fill(50);
+    rect(50,50,350,600);
+    fill(100);
+    rect(100,100,250,500);
 
-  theGoal.draw();
+    //draw the walls
+    for(int i = 0; i < daWalls.length; i++)
+    {
+        daWalls[i].draw();
+    }
 
-  player.draw();
-  if(player.checkPositionValid() == false)
-  {
-      player.teleport(150,400);
-  }
+    theGoal.draw();
+
+    //Players
+    player.draw();
+    if(player.checkPositionValid(player.xPos,player.yPos) == false)
+    {
+        player.teleport(150,400);
+    }
+
+    ai.draw();
+    if(ai.checkPositionValid(ai.xPos,player.yPos) == false)
+    {
+        ai.teleport(150,400);
+    }
 }
 
 public void keyPressed()
 {
-  if (key == CODED)
-  {
-    if (keyCode == LEFT)
-    { 
-      player.move(3);
-    }
-    else if (keyCode == RIGHT)
+    //Arrowkeys
+    if (key == CODED)
     {
-      player.move(1);
+        if (keyCode == LEFT)
+        { 
+            player.move(3);
+        }
+        else if (keyCode == RIGHT)
+        {
+            player.move(1);
+        }
+        else if (keyCode == UP)
+        {
+            player.move(0);
+        }
+        else if (keyCode == DOWN)
+        {
+            player.move(2);
+        }
     }
-    else if (keyCode == UP)
-    {
-      player.move(0);
-    }
-    else if (keyCode == DOWN)
-    {
-      player.move(2);
-    }
-  }
 }
 
+public float calculateDistance(int x1, int y1, int x2, int y2)
+{
+    int xDist = x1 - x2;
+    int yDist = y1 - y2;
+    float distance = sqrt(xDist*xDist+yDist*yDist);
+    return distance;
+}
+class Goal
+{
+    int x;
+    int y;
+
+    Goal(int xPos, int yPos)
+    {
+        x = xPos;
+        y = yPos;
+    }
+
+    public void draw() {
+        fill(242, 188, 61);
+        rect(x + gameBounds[3],y + gameBounds[0],50,50);
+    }
+}
 class Player
 {
     int xPos;
     int yPos;
 
-    Player(int initX, int initY) {
+    int pcRED;
+    int pcBLU;
+    int pcGRE;
+
+    Player(int initX, int initY, int pcR, int pcB, int pcG) {
         xPos = initX + gameBounds[3];
         yPos = initY + gameBounds[0];
+        pcRED = pcR;
+        pcBLU = pcB;
+        pcGRE = pcG;
     }
     public void move(int direction) {
         if(direction == 0) {
@@ -108,12 +158,13 @@ class Player
             //move left
             xPos -= 50;
         }  
+        moveCounter++;
     }
 
-    public boolean checkPositionValid() {
+    public boolean checkPositionValid(int checkX, int checkY) {
         boolean positionValid = true;
         //check bounds
-        if(xPos < gameBounds[3] || xPos >= gameBounds[1] || yPos < gameBounds[0] || yPos >= gameBounds[2])
+        if(checkX < gameBounds[3] || checkX >= gameBounds[1] || checkY < gameBounds[0] || checkY >= gameBounds[2])
         {
             positionValid = false;
         }
@@ -127,7 +178,7 @@ class Player
             int wallBottomEdge = daWalls[i].y + daWalls[i].yUnits*50 + gameBounds[0];
             int wallRightEdge = daWalls[i].x + daWalls[i].xUnits*50 + gameBounds[3];
             
-            if(yPos >= wallTopEdge && yPos < wallBottomEdge && xPos >= wallLeftEdge && xPos < wallRightEdge)
+            if(checkY >= wallTopEdge && checkY < wallBottomEdge && checkX >= wallLeftEdge && checkX < wallRightEdge)
             {
                 positionValid = false;
             }
@@ -139,19 +190,22 @@ class Player
     {
         xPos = gameBounds[3] + destinationX;
         yPos = gameBounds[0] + destinationY;
+        moveCounter = 0;
     }
 
     public void draw() {
-        fill(76, 145, 156);
+        //player body (just a blue square)
+        //fill(76, 145, 156);
+        fill(pcRED,pcBLU,pcGRE);
         rect(xPos,yPos,50,50);
+        //Player face details
         fill(0);
         ellipse(xPos+15,yPos+23,8,8);
         ellipse(xPos+35,yPos+23,8,7);
         line(xPos+15,yPos+40,xPos+35,yPos+40);
-        line(xPos+35,yPos+40,xPos+38,yPos+37);
+        line(xPos+35,yPos+40,xPos+38,yPos+37);    
     }
 }
-
 class Wall
 {
     int x;
@@ -169,23 +223,6 @@ class Wall
     public void draw() {
         fill(140, 107, 83);
         rect(x + gameBounds[3],y + gameBounds[0],50*xUnits,50*yUnits);
-    }
-}
-
-class Goal
-{
-    int x;
-    int y;
-
-    Goal(int xPos, int yPos)
-    {
-        x = xPos;
-        y = yPos;
-    }
-
-    public void draw() {
-        fill(242, 188, 61);
-        rect(x + gameBounds[3],y + gameBounds[0],50,50);
     }
 }
   public void settings() {  size(900,700); }
