@@ -19,7 +19,19 @@
 
 // var theNeuralNetwork = makeNewNeuralNetwork([2,3,3,2]);
 // console.log("output array: "+RunNeuralNetwork(theNeuralNetwork,[0,1]))
-TESTcreateNeuralNetwork()
+//TrainSimpleNeuralNetwork()
+
+//TrainFullANDgate();
+
+
+//createAndRunNeuralNetworkAND();
+
+TrainSimpleNeuralNetworkMultiples();
+
+
+
+//TESTcalculateCrummynessLevel()
+//createAndRunNeuralNetwork();
 
 function createNewMaze()
 {
@@ -383,6 +395,9 @@ function RunNeuralNetwork(neuralNetwork,InputArray)
         //console.log(`set neuron [0, ${i}] input connection value to ${InputArray[i]}`)
         neuralNetwork[0][i].neuronResultValue = neuralNetwork[0][i].inputConnections[0].inputNeuronValue * neuralNetwork[0][i].inputConnections[0].inputNeuronMultiplier;
         //console.log(`set neuron [0, ${i}] result value to ${neuralNetwork[0][i].neuronResultValue} (input: ${neuralNetwork[0][i].inputConnections[0].inputNeuronValue} * mult: ${neuralNetwork[0][i].inputConnections[0].inputNeuronMultiplier}`)
+
+        //Add the bias
+        neuralNetwork[0][i].neuronResultValue += neuralNetwork[0][i].neuronBias;
     }
 
     //Step 2: With the input neuron values in place, calculate the values for the rest of the neurons in the following layers
@@ -407,6 +422,8 @@ function RunNeuralNetwork(neuralNetwork,InputArray)
 
             //After going through all of this neuron's connections, set the neuron result value
             neuralNetwork[l][n].neuronResultValue = neuronValueTotal;
+            //Add the bias
+            neuralNetwork[l][n].neuronResultValue += neuralNetwork[l][n].neuronBias;
         }
     }
 
@@ -423,7 +440,10 @@ function RunNeuralNetwork(neuralNetwork,InputArray)
     return outputArray;
 }
 
-function makeNewNeuralNetwork(NeuralNetStructure,NeuralNetMultipliers) // Example: [2,3,3,2] , [0.5,0.5,0.43,0.65, ... , 0.91] 
+
+
+
+function makeNewNeuralNetwork(NeuralNetStructure,NeuralNetMultipliers,NeuralNetBiases) // Example: [2,3,3,2] , [0.5,0.5,0.43,0.65, ... , 0.91] , [0.2,-0.1,0.4, ... , -0.5]
 {
     // var InputLayer = [makeNewNeuron([0,0],['in_1'],0.5,true),makeNewNeuron([0,1],['in_2'],0.5,true)];
     // var HiddenLayer1 = [makeNewNeuron([1,0],InputLayer,0.5,false),makeNewNeuron([1,1],InputLayer,0.5,false),makeNewNeuron([1,2],InputLayer,0.5,false)]
@@ -431,6 +451,7 @@ function makeNewNeuralNetwork(NeuralNetStructure,NeuralNetMultipliers) // Exampl
     // var OutputLayer = [makeNewNeuron([3,0],HiddenLayer2,0.5,false),makeNewNeuron([3,1],HiddenLayer2,0.5,false)]
 
     var newNeuralNetwork = []
+    var currentNeuron = 0;
     //Input layer first
     var InputLayer = []
     for(let n = 0; n < NeuralNetStructure[0]; n++)
@@ -439,8 +460,9 @@ function makeNewNeuralNetwork(NeuralNetStructure,NeuralNetMultipliers) // Exampl
         var neuronID = [0,n];
         var neuronConnection = ['in_'+neuronID[1]];
         
-        var newInputNeuron = makeNewNeuron(neuronID,neuronConnection,0.5,true)
+        var newInputNeuron = makeNewNeuron(neuronID,neuronConnection,0.5,true,NeuralNetBiases[currentNeuron]);
         InputLayer.push(newInputNeuron)
+        currentNeuron++;
     }
     newNeuralNetwork.push(InputLayer)
 
@@ -455,8 +477,9 @@ function makeNewNeuralNetwork(NeuralNetStructure,NeuralNetMultipliers) // Exampl
             var neuronID = [l,n];
             var neuronConnections = newNeuralNetwork[l-1]; //input the previous layer as the connections
             
-            var newNeuron = makeNewNeuron(neuronID,neuronConnections,0.5,false)
+            var newNeuron = makeNewNeuron(neuronID,neuronConnections,0.5,false,NeuralNetBiases[currentNeuron])
             ThisLayer.push(newNeuron)
+            currentNeuron++;
         }
         newNeuralNetwork.push(ThisLayer)
     }
@@ -493,11 +516,12 @@ function makeNewNeuralNetwork(NeuralNetStructure,NeuralNetMultipliers) // Exampl
     }
     return newNeuralNetwork;
 }
-function makeNewNeuron(newNeuronID,ArrayOfInputNeurons,startingMultiplier,IsInputNeuron)
+function makeNewNeuron(newNeuronID,ArrayOfInputNeurons,startingMultiplier,IsInputNeuron,Bias)
 {
     var newNeuron = {
         neuronID:newNeuronID,
         neuronResultValue:null,
+        neuronBias:Bias,
         inputConnections:[]
     }
 
@@ -552,6 +576,7 @@ function trainNeuralNetwork(neuralNetStructure,ArrayOfinputArrays,ArrayOfdesired
     //generate 1000 "random" neural networks and simulate them
     //Step 1: count up all the multipliers that need to be adjusted
     var TotalNetworkMultipliers = 0;
+    var TotalNetworkNeurons = 0;
     for(let l = 0; l < neuralNetStructure.length; l++)
     {
         for(let n = 0; n < neuralNetStructure[l]; n++)
@@ -561,114 +586,120 @@ function trainNeuralNetwork(neuralNetStructure,ArrayOfinputArrays,ArrayOfdesired
             } else {
                 TotalNetworkMultipliers += (neuralNetStructure[l-1])
             }
+            TotalNetworkNeurons++;
         }
     }
    
+    var startTime = Date.now();
     //Now that we know how many multipliers there are, total possible configurations = 10^(#decPointsPrecison * #multipliers)
-    console.log(`==============================================================`)
-    console.log(`Training Neural Network:`)
-    console.log(JSON.stringify(neuralNetStructure,null,4))
+    console.log(`=================================================================`)
+    console.log(`Training Neural Network: [${neuralNetStructure}] startTime: ${startTime}`)
     console.log(`-----------------------------------------------------------------`)
+    console.log(`Network  Inputs: ${JSON.stringify(ArrayOfinputArrays)}`)
+    console.log(`Desired Outputs: ${JSON.stringify(ArrayOfdesiredOutputArrays)}`)
+    console.log(`-----------------------------------------------------------------`)
+    console.log(`Total Neural Network Neurons: ${TotalNetworkNeurons}`)
     console.log(`Total Neural Network Multipliers: ${TotalNetworkMultipliers}`)
     console.log("")
 
-    //Generate and run the first batch of 1000 neural networks and save their results in an array
-    var Gen1BestNeuralNetResults = {networkID:[0],crummynessLevel:16};
-
-    for(let n = 0; n < 1000000; n++)
+    //prepare crummyness array
+    var maxCrummynessArray = [];
+    for(let i = 0; i < ArrayOfdesiredOutputArrays.length; i++)
     {
-        var TestSubjectCrummyness = 0 //lower is better
-
-        var randomMultiplierSet = generateRandomSetOfNeuralNetMultipliers(TotalNetworkMultipliers)
-
-        //run for each input scenario
-        for(let i = 0; i < ArrayOfinputArrays.length; i++)
-        {
-            var TestSubjectNeuralNetwork = makeNewNeuralNetwork(neuralNetStructure,randomMultiplierSet)
-            //console.log("TEST SUBJECT NEURAL NETWORK:")
-            //console.log(randomMultiplierSet)
-            //console.log(JSON.stringify(TestSubjectNeuralNetwork,null,4))
-            var TestSubjectResultArray = RunNeuralNetwork(TestSubjectNeuralNetwork,ArrayOfinputArrays[i])
-            TestSubjectCrummyness += calculateCrummynessLevel(ArrayOfdesiredOutputArrays[i],TestSubjectResultArray)
-        }
-        //Now save the results and move on to the next test subject
-        if(TestSubjectCrummyness < Gen1BestNeuralNetResults.crummynessLevel)
-        {
-            Gen1BestNeuralNetResults = {networkID:randomMultiplierSet,crummynessLevel:TestSubjectCrummyness};
-        }
-        //console.log(`Network Test ${n} crummyness: ${TestSubjectCrummyness} multiplierSet: ${randomMultiplierSet}`)
+        maxCrummynessArray.push(16);
     }
+    //Generate and run the first batch of 1000 neural networks and save their results in an array
+    var Gen0Start = {networkMultipliers:generateRandomSetOfNeuralNetMultipliers(TotalNetworkMultipliers),networkBiases:generateRandomSetOfNeuralNetBiases(TotalNetworkNeurons),crummynessLevel:maxCrummynessArray};
 
-    //keep the best 5 and generate 200 more using similar settings for each champion
-    //Gen1NeuralNetResults = sortArray(Gen1NeuralNetResults,'crummynessLevel')
-    //var top5NeuralNetIDs = Gen1NeuralNetResults.splice(0,5)
-    console.log(`Generation 1: Simulation Complete! Best NeuralNets:`)
-    console.log(Gen1BestNeuralNetResults)
+    Gen1BestNeuralNetResults = simulateNeuralNetGeneration(Gen0Start,neuralNetStructure,ArrayOfinputArrays,ArrayOfdesiredOutputArrays)
+      
+
+    console.log(`Generation 0: Simulation Complete! Best NeuralNets:`)
+    console.log(JSON.stringify(Gen1BestNeuralNetResults))
 
     //now run the neural network to see its outputs
-
-    var outputArray = RunNeuralNetwork(makeNewNeuralNetwork(neuralNetStructure,Gen1BestNeuralNetResults.networkID),[0,0])
-    
     for(let i = 0; i < ArrayOfinputArrays.length; i++)
     {
-        var BestNeuralNetwork = makeNewNeuralNetwork(neuralNetStructure,Gen1BestNeuralNetResults.networkID)
+        var BestNeuralNetwork = makeNewNeuralNetwork(neuralNetStructure,Gen1BestNeuralNetResults.networkMultipliers,Gen1BestNeuralNetResults.networkBiases)
         
         var BestNeuralNetworkResults = RunNeuralNetwork(BestNeuralNetwork,ArrayOfinputArrays[i])
-        console.log(`Network input: [${ArrayOfinputArrays[i]} -> Network output: ${BestNeuralNetworkResults}`)
+        console.log(`Network input: [${ArrayOfinputArrays[i]}] -> Network output: [${BestNeuralNetworkResults}]`)
     }
 
-    console.log(`Simulating generation 2...`)
-    //Now slightly adjust each value
-    var gen2best = simulateNeuralNetGeneration(Gen1BestNeuralNetResults,neuralNetStructure,ArrayOfinputArrays,ArrayOfdesiredOutputArrays)
-    console.log(`Generation 2: Simulation Complete! Best NeuralNets:`)
-    console.log(gen2best)
 
-    console.log(`Simulating generation 3...`)
-    //Now slightly adjust each value
-    var gen3best = simulateNeuralNetGeneration(gen2best,neuralNetStructure,ArrayOfinputArrays,ArrayOfdesiredOutputArrays)
-    console.log(`Generation 3: Simulation Complete! Best NeuralNets:`)
-    console.log(gen3best)
+    //Evolve neural network
+    var AmountOfGenerations = 6;
 
-    console.log(`Simulating generation 4...`)
-    //Now slightly adjust each value
-    var gen4best = simulateNeuralNetGeneration(gen3best,neuralNetStructure,ArrayOfinputArrays,ArrayOfdesiredOutputArrays)
-    console.log(`Generation 4: Simulation Complete! Best NeuralNets:`)
-    console.log(gen4best)
+    var pastGenerationBest = Gen1BestNeuralNetResults;
 
-    console.log(`Simulating generation 5...`)
-    //Now slightly adjust each value
-    var gen5best = simulateNeuralNetGeneration(gen4best,neuralNetStructure,ArrayOfinputArrays,ArrayOfdesiredOutputArrays)
-    console.log(`Generation 3: Simulation Complete! Best NeuralNets:`)
-    console.log(gen5best)
+    for(let g = 0; g < AmountOfGenerations; g++)
+    {
+        console.log(`Simulating generation ${g}...`)
+        //Now slightly adjust each value
+        var gen2best = simulateNeuralNetGeneration(pastGenerationBest,neuralNetStructure,ArrayOfinputArrays,ArrayOfdesiredOutputArrays)
+        console.log(`Generation ${g}: Simulation Complete! Best NeuralNets:`)
+        console.log(gen2best)
 
-    //repeat until lameness level is sufficiently low
+        //now run the neural network to see its outputs
+        for(let i = 0; i < ArrayOfinputArrays.length; i++)
+        {
+            var BestNeuralNetwork = makeNewNeuralNetwork(neuralNetStructure,gen2best.networkMultipliers,gen2best.networkBiases)
+            
+            var BestNeuralNetworkResults = RunNeuralNetwork(BestNeuralNetwork,ArrayOfinputArrays[i])
+            console.log(`Network input: [${ArrayOfinputArrays[i]}] -> Network output: [${BestNeuralNetworkResults}]`)
+        }
+        pastGenerationBest.networkMultipliers = gen2best.networkMultipliers;
+        pastGenerationBest.networkBiases = gen2best.networkBiases;
+        pastGenerationBest.crummynessLevel = gen2best.crummynessLevel;
+    }
 
+    var TimeElapsed = Date.now() - startTime;
+    console.log("======================================================")
+    console.log(`Time elapsed: ${TimeElapsed} ms`)
 }
 function simulateNeuralNetGeneration(theBest,neuralNetStructure,ArrayOfinputArrays,ArrayOfdesiredOutputArrays)
 {
-    for(let n = 0; n < 1000000; n++)
+    for(let focus = 0; focus < ArrayOfdesiredOutputArrays.length; focus++)
     {
-        var TestSubjectCrummyness = 0 //lower is better
+        //focus on one desired output array at a time
 
-        var modifiedMultiplierSet = SlightlyAdjustRandomSetOfNeuralNetMultipliers(theBest.networkID)
+        //simulate 1000000 steps to possibly take
+        for(let n = 0; n < 1000000; n++)
+        {
+            var TestSubjectCrummyness = [] //lower is better
 
-        //run for each input scenario
-        for(let i = 0; i < ArrayOfinputArrays.length; i++)
-        {
-            var TestSubjectNeuralNetwork = makeNewNeuralNetwork(neuralNetStructure,modifiedMultiplierSet)
-            //console.log("TEST SUBJECT NEURAL NETWORK:")
-            //console.log(randomMultiplierSet)
-            //console.log(JSON.stringify(TestSubjectNeuralNetwork,null,4))
-            var TestSubjectResultArray = RunNeuralNetwork(TestSubjectNeuralNetwork,ArrayOfinputArrays[i])
-            TestSubjectCrummyness += calculateCrummynessLevel(ArrayOfdesiredOutputArrays[i],TestSubjectResultArray)
+            //Prepare to create modified verson of the best
+            var copyOfTheBestMultipliers = []
+            for(let i = 0; i < theBest.networkMultipliers.length; i++)
+            {
+                copyOfTheBestMultipliers.push(theBest.networkMultipliers[i]);
+            }
+            var copyOfTheBestBiases = [];
+            for(let i = 0; i < theBest.networkBiases.length; i++)
+            {
+                copyOfTheBestBiases.push(theBest.networkBiases[i]);
+            }
+
+            var modifiedMultiplierSet = SlightlyAdjustRandomSetOfNeuralNetMultipliers(copyOfTheBestMultipliers)
+            var modifiedBiasSet = SlightlyAdjustRandomSetOfNeuralNetMultipliers(copyOfTheBestBiases)
+
+            //run for each input scenario
+            for(let i = 0; i < ArrayOfinputArrays.length; i++)
+            {
+                var TestSubjectNeuralNetwork = makeNewNeuralNetwork(neuralNetStructure,modifiedMultiplierSet,modifiedBiasSet)
+                
+                var TestSubjectResultArray = RunNeuralNetwork(TestSubjectNeuralNetwork,ArrayOfinputArrays[i])
+                TestSubjectCrummyness.push(calculateCrummynessLevel(ArrayOfdesiredOutputArrays[i],TestSubjectResultArray))
+            }
+            //Now save the results and move on to the next test subject
+            if(TestSubjectCrummyness[focus] < theBest.crummynessLevel[focus])
+            {
+                theBest = {networkMultipliers:modifiedMultiplierSet,networkBiases:modifiedBiasSet,crummynessLevel:TestSubjectCrummyness};
+            }
+            //console.log(`Gen2 Network Test ${n} crummyness: ${TestSubjectCrummyness} multiplierSet: ${modifiedMultiplierSet}`)
         }
-        //Now save the results and move on to the next test subject
-        if(TestSubjectCrummyness < theBest.crummynessLevel)
-        {
-            theBest = {networkID:modifiedMultiplierSet,crummynessLevel:TestSubjectCrummyness};
-        }
-        //console.log(`Gen2 Network Test ${n} crummyness: ${TestSubjectCrummyness} multiplierSet: ${modifiedMultiplierSet}`)
     }
+    
     return theBest;
 }
 function generateRandomSetOfNeuralNetMultipliers(AmtOfMultipliers)
@@ -680,6 +711,19 @@ function generateRandomSetOfNeuralNetMultipliers(AmtOfMultipliers)
     }
     return randomMultiplierArray;
 }
+function generateRandomSetOfNeuralNetBiases(AmtOfBiases)
+{
+    var randomBiasArray = [];
+    for(let i = 0; i < AmtOfBiases; i++)
+    {  
+        randomBiasArray.push(Number((getRandomArbitrary(-1,1)).toFixed(4)))
+    }
+    return randomBiasArray;
+}
+function getRandomArbitrary(min, max) {
+    return Math.random() * (max - min) + min;
+}
+
 function SlightlyAdjustRandomSetOfNeuralNetMultipliers(Multipliers)
 {
     
@@ -687,10 +731,10 @@ function SlightlyAdjustRandomSetOfNeuralNetMultipliers(Multipliers)
     {
         var randomNumber = Math.random();
         if(randomNumber < 0.3333333333) {
-            Multipliers[i] -= 0.0001;
+            Multipliers[i] -= 0.001;
             Multipliers[i] = Number((Multipliers[i]).toFixed(4))
         } else if(randomNumber > 0.666666666) {
-            Multipliers[i] += 0.0001;
+            Multipliers[i] += 0.001;
             Multipliers[i] = Number((Multipliers[i]).toFixed(4))
         }
     }
@@ -712,61 +756,111 @@ function calculateCrummynessLevel(desiredOutputArray,actualOutputArray)
 
 
 
-function sortArray(ArrayToSort, thingToSortBy)
-{
-    //quickly check everything in the array for compliance
-    for(let i = 0; i < ArrayToSort.length; i++)
-    {
-        if(ArrayToSort[i][thingToSortBy] == null)
-        {
-            ArrayToSort[i][thingToSortBy] = 0;
-        }
-    }
-    //bubble sort!
-    var ArraySorted = false;
-    while(ArraySorted == false)
-    {
-        var activeTBsort = 0;
-        var numOfSwaps = 0;
-        while(activeTBsort+1 < ArrayToSort.length)
-        {
-            //Bubble Sort!
-            //look at the price of the first item and if it is lower than the next item, then swap places. else, move to next item
-            var currentItem = ArrayToSort[activeTBsort]
-            var nextItem = ArrayToSort[activeTBsort+1]
 
-            if(currentItem[thingToSortBy] > nextItem[thingToSortBy])
-            {
-                //swap these bots
-                ArrayToSort[activeTBsort] = nextItem;
-                ArrayToSort[activeTBsort+1] = currentItem;
-                numOfSwaps++
-            }
-            activeTBsort++;
-        }
-        if(numOfSwaps == 0)
-        {
-            ArraySorted = true;
-            return ArrayToSort
-        }
-    }
+
+
+function TrainFullANDgate()
+{
+     var neuralNetStructure = [8,12,12,4];
+     trainNeuralNetwork(neuralNetStructure,[[0,0,0,1,1,0,1,1]],[[0,0,0,1]])
+    
+    //var neuralNetStructure = [2,8,12,12,4,1];
+    //trainNeuralNetwork(neuralNetStructure,[[0,0],[1,0],[0,1],[1,1]],[[0],[0],[0],[1]])
+    
+}
+function TrainSimpleNeuralNetwork()
+{
+    var neuralNetStructure = [2,3,3,1];
+
+    trainNeuralNetwork(neuralNetStructure,[[0,0]],[[1]])
 }
 
 
-function TESTcreateNeuralNetwork()
+function TrainSimpleNeuralNetworkMultiples()
 {
-    var neuralNetStructure = [2,3,3,2];
-    // var neuralNetMultipliers = [
-    //     0.5,0.5, //input layer
-    //     0.73,0.51,0.21,0.63,0.52,0.94, //layer1
-    //     0.53,0.23,0.67,0.51,0.34,0.78,0.67,0.95,0.12, //layer2
-    //     0.54,0.93,0.23,0.74,0.23,0.65 //output layer
-    // ];
-    // var inputArray = [0,1];
-    // console.log(`Creating neural network ${neuralNetStructure} with multipliers: ${neuralNetMultipliers}`)
-    // var theNeuralNetwork = makeNewNeuralNetwork(neuralNetStructure,neuralNetMultipliers);
-    // console.log(`Network has been simulated with input [${inputArray}] and its output array is: ${RunNeuralNetwork(theNeuralNetwork,inputArray)} Below is the result Neural Network:`)
+    var neuralNetStructure = [2,3,3,1];
 
-    // console.log(`Now attempting to train neural network...`)
-    trainNeuralNetwork(neuralNetStructure,[[0,0],[0,1],[1,0],[1,1]],[[1,1],[1,0],[0,1],[0,0]])
+    trainNeuralNetwork(neuralNetStructure,[[0,0],[1,0],[0,1],[1,1]],[[0],[1],[1],[1]])
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+function TESTcalculateCrummynessLevel()
+{
+    var DesiredOutputArray = [1,0]
+    var Actual_OutputArray = [1.0897772560704508,0.03255207545432381]
+
+    var crummyness = calculateCrummynessLevel(DesiredOutputArray,Actual_OutputArray)
+    console.log(`Crummyness level: ${crummyness}`)
+}
+
+function createAndRunNeuralNetwork()
+{
+    var networkStructure = [2,3,3,1]
+    var multipliers = [0.9631, 0.1536, 0.2011,
+        0.1752, 0.7012, 0.9063,
+        0.8278,  0.274, 0.0662,
+        0.0925, 0.2503, 0.8643,
+        0.0345, 0.5137, 0.1037,
+        0.6609, 0.7402, 0.0198,
+        0.0036, -0.007];
+    var biases = [0.0836, 0.8046,
+        0.532,  0.747,
+       0.0992,  0.637,
+       0.1075, 0.2974,
+        -0.01];
+
+    var inputArray = [0,1];
+    var expectedOutput = [0]
+
+    var NeuralNetwork = makeNewNeuralNetwork(networkStructure,multipliers,biases);
+    var Output = RunNeuralNetwork(NeuralNetwork,inputArray);
+    var Crummyness = calculateCrummynessLevel(expectedOutput,Output)
+    console.log(`Network input: [${inputArray}] -> Network output: [${Output}]`)
+    console.log(`Crummyness level: ${Crummyness}`)
+}
+
+function createAndRunNeuralNetworkAND()
+{
+    //Orginal Network
+    var OrigStructure = [8,12,12,4]
+
+    var multipliers = [0.1812,0.4361,0.4376,0.2913,-0.0007,0.1593,0.9425,0.3504,0.0414,0.9363,0.291,0.1142,0.3162,0.5204,0.1398,0.8217,0.3752,0.983,0.2036,0.5649,0.8877,0.8959,0.8056,0.1586,0.8433,0.4787,0.0094,0.1933,0.6202,0.0582,0.5118,0.5928,0.5126,0.8561,0.3518,0.8273,0.5626,0.401,0.7273,0.6967,0.8188,0.3478,0.8588,0.5562,0.8572,0.0275,0.7274,0.381,0.3453,0.8251,0.0974,0.7775,0.3467,0.9629,0.398,1.0075,0.1444,0.4331,0.3485,0.4737,0.2284,0.6429,0.9642,0.699,0.5326,0.2607,0.6593,0.5793,0.166,0.7078,0.5242,0.6108,0.9313,0.7128,0.4304,0.7822,0.6132,0.4243,0.5521,0.8757,0.5146,0.0331,0.6496,0.2943,0.8013,0.4294,0.5424,-0.0034,0.3915,0.2245,0.3442,0.8694,0.0305,0.4252,0.3498,0.797,0.7191,0.9252,0.8937,0.6594,0.6152,0.2826,0.2712,0.5726,0.6001,0.7677,0.6246,0.0231,0.1566,0.7771,0.9911,0.0537,0.1562,0.8046,0.2073,0.3835,0.0935,0.6209,0.3651,0.9025,0.0773,0.2797,0.1046,0.955,0.5066,0.0631,0.7589,0.9457,0.5224,0.1425,0.0035,0.1614,0.5194,0.6561,0.3803,0.9922,0.6545,0.9627,0.8703,0.0179,0.1511,0.1664,0.247,0.2594,0.3732,0.7649,0.6767,0.6637,0.1188,0.6606,0.6956,0.4478,0.0453,0.7806,0.4063,0.1795,0.7321,0.717,0.1356,0.145,0.6977,0.7667,0.4016,0.3275,0.5271,0.6993,0.3554,0.7391,0.178,0.6228,0.5406,0.0503,0.3348,0.3523,0.2505,0.4657,0.2836,0.4031,0.665,0.2096,0.8906,0.2091,0.5547,0.7829,0.5919,0.4257,0.4304,0.0956,0.6702,0.0983,0.2243,0.2974,0.2472,0.717,0.3517,0.0318,0.0836,0.4237,0.8192,0.4799,0.6506,0.2249,0.7596,0.5066,0.7149,0.4212,0.899,0.2631,0.5762,0.3698,0.4011,0.7023,0.0221,0.481,0.2847,0.3826,0.3301,0.4424,0.4463,0.3777,0.5974,0.2157,0.2905,0.0282,0.8187,0.5558,0.2862,0.5537,0.032,0.3018,0.7,0.2912,0.4162,0.0176,0.9532,0.6073,0.2733,0.5556,0.579,0.6856,0.484,0.5999,0.071,0.5252,0.8503,0.4696,0.2588,0.0212,0.9236,0.9972,0.4936,0.3582,0.3327,0.6019,0.6314,0.1598,0.2185,0.0318,0.5613,0.5305,0.1526,0.993,0.6927,0.0749,0.0747,0.1198,0.329,0.6665,0.0885,0.1776,0.171,0.9916,0.542,0.3377,0.7483,0.4713,0.527,0.0496,0.1494,0.7303,0.6502,0.4977,0.1339,0.2226,0.1911,0.2065,0.7546,0.1867,0.1496,0.0456,0.1876,0.8813,0.9051,0.404,0.9582,0.975];
+
+    var biases = [-0.8195,-0.9244,-0.1785,0.7234,-0.7313,-0.1405,0.669,-0.2786,-0.1031,0.7732,-0.1529,0.1072,-0.3266,0.4496,0.2094,-0.3766,-0.9713,-0.8031,0.6444,0.2611,-0.8511,0.3825,-0.5494,-0.971,-0.3537,-0.8255,-0.6946,0.3817,0.4619,-0.6486,-0.2264,-0.4532,0.6557,0.2808,0.2268,0.8977];
+
+    var inputArray = [0,0,0,1,1,0,1,1];
+    var expectedOutput = [0,0,0,1];
+
+    var NeuralNetwork = makeNewNeuralNetwork(OrigStructure,multipliers,biases);
+    var Output = RunNeuralNetwork(NeuralNetwork,inputArray);
+    var Crummyness = calculateCrummynessLevel(expectedOutput,Output)
+    console.log(`Network input: [${inputArray}] -> Network output: [${Output}]`)
+    console.log(`Crummyness level: ${Crummyness}`)
+
+    //Experimental network
+    var EXnetworkStructure = [2,8,12,12,4,1]
+
+    var EXmultipliers = [1,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,0.1812,0.4361,0.4376,0.2913,-0.0007,0.1593,0.9425,0.3504,0.0414,0.9363,0.291,0.1142,0.3162,0.5204,0.1398,0.8217,0.3752,0.983,0.2036,0.5649,0.8877,0.8959,0.8056,0.1586,0.8433,0.4787,0.0094,0.1933,0.6202,0.0582,0.5118,0.5928,0.5126,0.8561,0.3518,0.8273,0.5626,0.401,0.7273,0.6967,0.8188,0.3478,0.8588,0.5562,0.8572,0.0275,0.7274,0.381,0.3453,0.8251,0.0974,0.7775,0.3467,0.9629,0.398,1.0075,0.1444,0.4331,0.3485,0.4737,0.2284,0.6429,0.9642,0.699,0.5326,0.2607,0.6593,0.5793,0.166,0.7078,0.5242,0.6108,0.9313,0.7128,0.4304,0.7822,0.6132,0.4243,0.5521,0.8757,0.5146,0.0331,0.6496,0.2943,0.8013,0.4294,0.5424,-0.0034,0.3915,0.2245,0.3442,0.8694,0.0305,0.4252,0.3498,0.797,0.7191,0.9252,0.8937,0.6594,0.6152,0.2826,0.2712,0.5726,0.6001,0.7677,0.6246,0.0231,0.1566,0.7771,0.9911,0.0537,0.1562,0.8046,0.2073,0.3835,0.0935,0.6209,0.3651,0.9025,0.0773,0.2797,0.1046,0.955,0.5066,0.0631,0.7589,0.9457,0.5224,0.1425,0.0035,0.1614,0.5194,0.6561,0.3803,0.9922,0.6545,0.9627,0.8703,0.0179,0.1511,0.1664,0.247,0.2594,0.3732,0.7649,0.6767,0.6637,0.1188,0.6606,0.6956,0.4478,0.0453,0.7806,0.4063,0.1795,0.7321,0.717,0.1356,0.145,0.6977,0.7667,0.4016,0.3275,0.5271,0.6993,0.3554,0.7391,0.178,0.6228,0.5406,0.0503,0.3348,0.3523,0.2505,0.4657,0.2836,0.4031,0.665,0.2096,0.8906,0.2091,0.5547,0.7829,0.5919,0.4257,0.4304,0.0956,0.6702,0.0983,0.2243,0.2974,0.2472,0.717,0.3517,0.0318,0.0836,0.4237,0.8192,0.4799,0.6506,0.2249,0.7596,0.5066,0.7149,0.4212,0.899,0.2631,0.5762,0.3698,0.4011,0.7023,0.0221,0.481,0.2847,0.3826,0.3301,0.4424,0.4463,0.3777,0.5974,0.2157,0.2905,0.0282,0.8187,0.5558,0.2862,0.5537,0.032,0.3018,0.7,0.2912,0.4162,0.0176,0.9532,0.6073,0.2733,0.5556,0.579,0.6856,0.484,0.5999,0.071,0.5252,0.8503,0.4696,0.2588,0.0212,0.9236,0.9972,0.4936,0.3582,0.3327,0.6019,0.6314,0.1598,0.2185,0.0318,0.5613,0.5305,0.1526,0.993,0.6927,0.0749,0.0747,0.1198,0.329,0.6665,0.0885,0.1776,0.171,0.9916,0.542,0.3377,0.7483,0.4713,0.527,0.0496,0.1494,0.7303,0.6502,0.4977,0.1339,0.2226,0.1911,0.2065,0.7546,0.1867,0.1496,0.0456,0.1876,0.8813,0.9051,0.404,0.9582,0.975,1,1,1,1];
+
+    var EXbiases = [0,0,-0.8195,-0.9244,-0.1785,0.7234,-0.7313,-0.1405,0.669,-0.2786,-0.1031,0.7732,-0.1529,0.1072,-0.3266,0.4496,0.2094,-0.3766,-0.9713,-0.8031,0.6444,0.2611,-0.8511,0.3825,-0.5494,-0.971,-0.3537,-0.8255,-0.6946,0.3817,0.4619,-0.6486,-0.2264,-0.4532,0.6557,0.2808,0.2268,0.8977,0];
+
+    var EXinputArray = [0,1];
+    var EXexpectedOutput = [0]
+
+    var EXNeuralNetwork = makeNewNeuralNetwork(EXnetworkStructure,EXmultipliers,EXbiases);
+    var EXOutput = RunNeuralNetwork(EXNeuralNetwork,EXinputArray);
+    var EXCrummyness = calculateCrummynessLevel(EXexpectedOutput,EXOutput)
+    console.log(`Network input: [${EXinputArray}] -> Network output: [${EXOutput}]`)
+    console.log(`Crummyness level: ${EXCrummyness}`)
 }
