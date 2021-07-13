@@ -19,6 +19,7 @@ Wall[] daWalls = new Wall[2];
 int[] gameBounds = {100,350,600,100};
 Goal theGoal;
 int moveCounter;
+boolean gameWon = false;
 
 Player player;
 Player ai;
@@ -45,10 +46,14 @@ public void draw()
     //Draw static text
     textSize(20);
     text("Move # "+moveCounter,50,40);
-    text("Position 0: "+player.checkPositionValid(player.xPos,player.yPos-50)+" "+calculateDistance(player.xPos,player.yPos-50,theGoal.x+gameBounds[3],theGoal.y+gameBounds[0])/50,425,70);
-    text("Position 1: "+player.checkPositionValid(player.xPos+50,player.yPos)+" "+calculateDistance(player.xPos+50,player.yPos,theGoal.x+gameBounds[3],theGoal.y+gameBounds[0])/50,425,90);
-    text("Position 2: "+player.checkPositionValid(player.xPos,player.yPos+50)+" "+calculateDistance(player.xPos,player.yPos+50,theGoal.x+gameBounds[3],theGoal.y+gameBounds[0])/50,425,110);
-    text("Position 3: "+player.checkPositionValid(player.xPos-50,player.yPos)+" "+calculateDistance(player.xPos-50,player.yPos,theGoal.x+gameBounds[3],theGoal.y+gameBounds[0])/50,425,130);
+    text("Position 0: "+player.checkPositionValid(player.xPos,player.yPos-50)+" "+calculateDistance(player.xPos,player.yPos-50,theGoal.x,theGoal.y)/50,425,70);
+    text("Position 1: "+player.checkPositionValid(player.xPos+50,player.yPos)+" "+calculateDistance(player.xPos+50,player.yPos,theGoal.x,theGoal.y)/50,425,90);
+    text("Position 2: "+player.checkPositionValid(player.xPos,player.yPos+50)+" "+calculateDistance(player.xPos,player.yPos+50,theGoal.x,theGoal.y)/50,425,110);
+    text("Position 3: "+player.checkPositionValid(player.xPos-50,player.yPos)+" "+calculateDistance(player.xPos-50,player.yPos,theGoal.x,theGoal.y)/50,425,130);
+    text("Game Won: "+gameWon,425,150);
+    text("Goal location x: "+theGoal.x+" y: "+theGoal.y,425,170);
+    text("Player location x: "+player.xPos+" y: "+player.yPos,425,190);
+
 
     //draw the boundaries
     fill(50);
@@ -56,21 +61,33 @@ public void draw()
     fill(100);
     rect(100,100,250,500);
 
+    if(gameWon == true)
+    {
+        fill(3,252,23);
+        rect(50,50,350,600);
+        fill(100);
+        rect(100,100,250,500);
+    }
+
     //draw the walls
     for(int i = 0; i < daWalls.length; i++)
     {
         daWalls[i].draw();
     }
 
+    //draw the goal
     theGoal.draw();
 
-    //Players
+    //draw the Player
     player.draw();
+    gameWon = theGoal.checkIfCollided(player.xPos,player.yPos);
+
     if(player.checkPositionValid(player.xPos,player.yPos) == false)
     {
         player.teleport(150,400);
     }
 
+    //draw the AI
     ai.draw();
     if(ai.checkPositionValid(ai.xPos,player.yPos) == false)
     {
@@ -80,6 +97,12 @@ public void draw()
 
 public void keyPressed()
 {
+    //pause simulation
+    if(key == 'p')
+    {
+        if(looping) noLoop();
+        else        loop();
+    }
     //Arrowkeys
     if (key == CODED)
     {
@@ -116,13 +139,23 @@ class Goal
 
     Goal(int xPos, int yPos)
     {
-        x = xPos;
-        y = yPos;
+        x = xPos+gameBounds[3];
+        y = yPos+gameBounds[0];
     }
 
     public void draw() {
         fill(242, 188, 61);
-        rect(x + gameBounds[3],y + gameBounds[0],50,50);
+        rect(x,y,50,50);
+    }
+
+    public boolean checkIfCollided(int playerXpos,int playerYpos)
+    {
+        if(playerXpos == x && playerYpos == y)
+        {
+            return true;
+        } else {
+            return false;
+        }
     }
 }
 class Player
