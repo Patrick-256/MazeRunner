@@ -1,6 +1,7 @@
 class NeuralNetwork
 {
     NeuralNetLayer[] neuralNetwork;
+    float[] outputArray;
 
     //constructor - build a new neural network
     NeuralNetwork(int[] nueralNetLayerConfig, float[] neuralNetMultipliers, float[] neuralNetBiases)
@@ -54,7 +55,7 @@ class NeuralNetwork
         //do the input layers first - plug the provided nnInputs into the nn input neurons
         println("Simulate the Nerual Network INPUT: ");
         printArray(nnInputs);
-        
+
         //do all the neurons in the first layer first
         for(int n = 0; n < neuralNetwork[0].getNNlayer().length; n++)
         {
@@ -96,10 +97,8 @@ class NeuralNetwork
         println("Simulate the Nerual Network OUTPUT: ");
         printArray(outArray);
 
-        //return outArray;
+        outputArray = outArray;
     }
-
-    
 }
 
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------

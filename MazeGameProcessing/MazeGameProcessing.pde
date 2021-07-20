@@ -21,6 +21,7 @@ NeuralNetwork testNeuralNet;
 
 int empty;
 
+AIcore aiTestbot;
 
 void setup()
 {
@@ -45,25 +46,29 @@ void setup()
     println("nnConfig: "+nnConfig);
     printArray(nnConfig);
 
+    //Generate a random neural net (confined to config defined above)
     float[] nnMultipliers = generateRandomNN_Multipliers(40); //new float[40];
     // for(int m = 0; m < 40; m++) {
     //     nnMultipliers[m] = 0.5;
     // }
-    println("nnMultipliers: -----------------------------------");
-    printArray(nnMultipliers);
+
+    // println("nnMultipliers: -----------------------------------");
+    // printArray(nnMultipliers);
 
     float[] nnBiases = generateRandomNN_Biases(12); //new float[12];
     // for(int b = 0; b < 12; b++) {
     //     nnBiases[b] = 0.1;
     // }
-    println("nnBiases: ----------------");
-    printArray(nnBiases);
 
+    // println("nnBiases: ----------------");
+    // printArray(nnBiases);
 
     testNeuralNet = new NeuralNetwork(nnConfig,nnMultipliers,nnBiases);
-    float[] inputs = { 1, 10, 1, 10.5, 1, 11, 1, 9.6};
-    printArray(inputs);
-    testNeuralNet.runNeuralNetwork(inputs);
+    // float[] inputs = { 1, 10, 1, 10.5, 1, 11, 1, 9.6};
+    // printArray(inputs);
+    // testNeuralNet.runNeuralNetwork(inputs);
+
+    
 
     // //ArrayList version
     // //test neural networks
@@ -98,7 +103,7 @@ void setup()
 
 
 
-
+    frameRate(1);
 
     size(900,700);
     background(100);
@@ -110,6 +115,10 @@ void setup()
 
     player = new Player(150,400,76,145,156);
     // ai = new Player(150,400,76,0,156);
+
+    //test AI - give it the randomly generated neural net from above
+    aiTestbot = new AIcore(testNeuralNet);
+    
 }
 
 void draw()
@@ -151,21 +160,23 @@ void draw()
     //draw the goal
     theGoal.draw();
 
-    //draw the Player
+    //draw the Players
     player.draw();
+    
+    aiTestbot.draw();
+    aiTestbot.makeMoveAI();
+
     gameWon = theGoal.checkIfCollided(player.xPos,player.yPos);
 
     if(player.checkPositionValid(player.xPos,player.yPos) == false)
     {
         player.teleport(150,400);
     }
-
-    // //draw the AI
-    // ai.draw();
-    // if(ai.checkPositionValid(ai.xPos,player.yPos) == false)
-    // {
-    //     ai.teleport(150,400);
-    // }
+    if(aiTestbot.checkSelfPositionValid() == false)
+    {
+        //ai has hit a wall.
+        aiTestbot.killAI();
+    }
 }
 
 void keyPressed()
