@@ -53,8 +53,8 @@ class NeuralNetwork
     void runNeuralNetwork(float[] nnInputs)
     {
         //do the input layers first - plug the provided nnInputs into the nn input neurons
-        println("Simulate the Nerual Network INPUT: ");
-        printArray(nnInputs);
+        // println("Simulate the Nerual Network INPUT: ");
+        // printArray(nnInputs);
 
         //do all the neurons in the first layer first
         for(int n = 0; n < neuralNetwork[0].getNNlayer().length; n++)
@@ -94,8 +94,8 @@ class NeuralNetwork
             outArray[i] = neuralNetwork[neuralNetwork.length-1].getNNlayer()[i].output;
         }
 
-        println("Simulate the Nerual Network OUTPUT: ");
-        printArray(outArray);
+        // println("Simulate the Nerual Network OUTPUT: ");
+        // printArray(outArray);
 
         outputArray = outArray;
     }

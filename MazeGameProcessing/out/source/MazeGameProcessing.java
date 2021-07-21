@@ -22,104 +22,15 @@ int moveCounter;
 boolean gameWon = false;
 
 Player player;
-//Player ai;
 
-//test arraylists
-ArrayList<ArrayList> testInts;
-ArrayList<String> actStrings;
-ArrayList<String> actStrings2;
-
-//test neural networks
-ArrayList<Integer> nnConfig;
-ArrayList<Float> nnMultipliers;
-ArrayList<Float> nnBiases;
 NeuralNetwork testNeuralNet;
 
-int empty;
-
 AIcore aiTestbot;
+AIpopulation testPop;
 
 public void setup()
 {
-    //test arraylists
-    actStrings = new ArrayList <String>();
-    actStrings2 = new ArrayList <String>();
-    actStrings.add("actStr0");
-    actStrings.add("actStr1");
-    actStrings2.add("2actStr0");
-    actStrings2.add("2actStr1");
-    testInts = new ArrayList <ArrayList>();
-    testInts.add(actStrings);
-    testInts.add(actStrings2);
-    println(testInts);
-    println(testInts.get(0).get(1));
-
-
-
-
-    //test neural networks
-    int[] nnConfig = { 8,4 };
-    println("nnConfig: "+nnConfig);
-    printArray(nnConfig);
-
-    //Generate a random neural net (confined to config defined above)
-    float[] nnMultipliers = generateRandomNN_Multipliers(40); //new float[40];
-    // for(int m = 0; m < 40; m++) {
-    //     nnMultipliers[m] = 0.5;
-    // }
-
-    // println("nnMultipliers: -----------------------------------");
-    // printArray(nnMultipliers);
-
-    float[] nnBiases = generateRandomNN_Biases(12); //new float[12];
-    // for(int b = 0; b < 12; b++) {
-    //     nnBiases[b] = 0.1;
-    // }
-
-    // println("nnBiases: ----------------");
-    // printArray(nnBiases);
-
-    testNeuralNet = new NeuralNetwork(nnConfig,nnMultipliers,nnBiases);
-    // float[] inputs = { 1, 10, 1, 10.5, 1, 11, 1, 9.6};
-    // printArray(inputs);
-    // testNeuralNet.runNeuralNetwork(inputs);
-
-    
-
-    // //ArrayList version
-    // //test neural networks
-    // nnConfig = new ArrayList <Integer>();
-    // nnConfig.add(8);
-    // nnConfig.add(4);
-    // println("nnConfig: "+nnConfig);
-
-    // nnMultipliers = new ArrayList <Float>();
-    // for(int m = 0; m < 40; m++) {
-    //     nnMultipliers.add(0.5);
-    // }
-    // println("nnMultipliers: "+nnMultipliers);
-
-    // nnBiases = new ArrayList <Float>();
-    // for(int b = 0; b < 12; b++) {
-    //     nnBiases.add(0.1);
-    // }
-    // println("nnBiases: "+nnBiases);
-
-    // testNeuralNet = new NeuralNetwork(nnConfig,nnMultipliers,nnBiases);
-    // println("empty: "+empty);
-    // float e = exp(1);
-    // float squish = 1 /(1 + exp(8.5));
-    // println("squishy = "+squish);
-
-    // float x = 5.936;
-    // int cas = (int) x;
-    // println("cast = "+cas);
-
-
-
-
-
-    frameRate(1);
+    frameRate(2);
 
     
     background(100);
@@ -130,10 +41,15 @@ public void setup()
     moveCounter = 0;
 
     player = new Player(150,400,76,145,156);
-    // ai = new Player(150,400,76,0,156);
 
+    //test neural networks
+    int[] nnConfig = { 8,4 };
+    println("nnConfig: "+nnConfig);
+    printArray(nnConfig);
     //test AI - give it the randomly generated neural net from above
+    testNeuralNet = generateRandomNeuralNetwork(nnConfig);
     aiTestbot = new AIcore(testNeuralNet);
+    testPop = new AIpopulation(10000,nnConfig);
     
 }
 
@@ -151,6 +67,8 @@ public void draw()
     text("Game Won: "+gameWon,425,150);
     text("Goal location x: "+theGoal.x+" y: "+theGoal.y,425,170);
     text("Player location x: "+player.xPos+" y: "+player.yPos,425,190);
+    text("AI location x: "+aiTestbot.aiCharacter.xPos+" y: "+aiTestbot.aiCharacter.yPos,425,210);
+    text("Population remaining AIs: "+testPop.amountOfAliveAIs,425,230);
 
 
     //draw the boundaries
@@ -179,8 +97,9 @@ public void draw()
     //draw the Players
     player.draw();
     
-    aiTestbot.draw();
+    //aiTestbot.draw();
     aiTestbot.makeMoveAI();
+    testPop.moveAllAIs();
 
     gameWon = theGoal.checkIfCollided(player.xPos,player.yPos);
 
@@ -188,11 +107,8 @@ public void draw()
     {
         player.teleport(150,400);
     }
-    if(aiTestbot.checkSelfPositionValid() == false)
-    {
-        //ai has hit a wall.
-        aiTestbot.killAI();
-    }
+    
+    moveCounter++;
 }
 
 public void keyPressed()
@@ -237,78 +153,96 @@ class AIcore
     NeuralNetwork brain;
     Player aiCharacter;
     boolean aiCoreIsAlive;
+    float distanceToGoalOnDeath;
+    int amountOfMovesMadeBeforeDeath;
+    boolean aiHasWonTheGame;
 
     //constructor
     AIcore(NeuralNetwork nBrain)
     {
         brain = nBrain;
+        //Figure what color to make the ai player based on the multipliers and biases of the neural net
+        // -> well, ill hold off on that idea for now becasue there are only 256^3 unique colors and 
+        //    there are about 100^50 different possible NN multiplier/bias configs, so a significant 
+        //    amount of different neural nets would end up with the same color -_-
         aiCharacter = new Player(150,400,76,0,156);
         aiCoreIsAlive = true;
+        aiHasWonTheGame = false;
     }
 
     //Make a move
     public void makeMoveAI()
     {
-        if(aiCoreIsAlive == true)
+        aiCharacter.draw();
+
+        if(gameWon == true)
         {
-            //Observe the AI's current position to generate the neuralnet input array
-            float[] nnInputs = new float[8];
-
-            //Input 1 of 8: position 0 open or not
-            boolean position0open = aiCharacter.checkPositionValid(aiCharacter.xPos,aiCharacter.yPos-50);
-            if(position0open == true) { nnInputs[0] = 1; }
-            else { nnInputs[0] = 0; }
-
-            //Input 2 of 8: distance from position 0 to Goal
-            nnInputs[1] = calculateDistance(player.xPos,player.yPos-50,theGoal.x,theGoal.y)/50;
-
-            //Input 3 of 8: position 1 open or not
-            boolean position1open = aiCharacter.checkPositionValid(aiCharacter.xPos+50,aiCharacter.yPos);
-            if(position1open == true) { nnInputs[2] = 1; }
-            else { nnInputs[2] = 0; }
-
-            //Input 4 of 8: distance from position 0 to Goal
-            nnInputs[3] = calculateDistance(player.xPos+50,player.yPos,theGoal.x,theGoal.y)/50;
-
-            //Input 5 of 8: position 2 open or not
-            boolean position2open = aiCharacter.checkPositionValid(aiCharacter.xPos,aiCharacter.yPos+50);
-            if(position2open == true) { nnInputs[4] = 1; }
-            else { nnInputs[4] = 0; }
-
-            //Input 6 of 8: distance from position 0 to Goal
-            nnInputs[5] = calculateDistance(player.xPos,player.yPos+50,theGoal.x,theGoal.y)/50;
-
-            //Input 7 of 8: position 3 open or not
-            boolean position3open = aiCharacter.checkPositionValid(aiCharacter.xPos-50,aiCharacter.yPos);
-            if(position3open == true) { nnInputs[6] = 1; }
-            else { nnInputs[6] = 0; }
-
-            //Input 8 of 8: distance from position 0 to Goal
-            nnInputs[7] = calculateDistance(player.xPos-50,player.yPos,theGoal.x,theGoal.y)/50;
-
-            //simulate the neuralnet with the provided inputs
-            brain.runNeuralNetwork(nnInputs);
-
-            //choose the strongest result from the neuralnet
-            float highestChoice = 0;
-            int highestChoiceIndex = 0;
-
-            for(int i = 0; i < brain.outputArray.length; i++)
-            {
-                if(brain.outputArray[i] > highestChoice)
-                {
-                    highestChoice = brain.outputArray[i];
-                    highestChoiceIndex = i;
-                }
-            }
-            //move to the chosen position
-            aiCharacter.move(highestChoiceIndex);
-
-            
+            aiHasWonTheGame = true;
         } else {
-            //AIcore is dead. do not move
+            if(aiCoreIsAlive == true)
+            {
+                //STEP 1: Observe the AI's current position to generate the neuralnet input array
+                float[] nnInputs = new float[8];
 
+                //Input 1 of 8: position 0 open or not
+                boolean position0open = aiCharacter.checkPositionValid(aiCharacter.xPos,aiCharacter.yPos-50);
+                if(position0open == true) { nnInputs[0] = 1; }
+                else { nnInputs[0] = 0; }
 
+                //Input 2 of 8: distance from position 0 to Goal
+                nnInputs[1] = calculateDistance(player.xPos,player.yPos-50,theGoal.x,theGoal.y)/50;
+
+                //Input 3 of 8: position 1 open or not
+                boolean position1open = aiCharacter.checkPositionValid(aiCharacter.xPos+50,aiCharacter.yPos);
+                if(position1open == true) { nnInputs[2] = 1; }
+                else { nnInputs[2] = 0; }
+
+                //Input 4 of 8: distance from position 0 to Goal
+                nnInputs[3] = calculateDistance(player.xPos+50,player.yPos,theGoal.x,theGoal.y)/50;
+
+                //Input 5 of 8: position 2 open or not
+                boolean position2open = aiCharacter.checkPositionValid(aiCharacter.xPos,aiCharacter.yPos+50);
+                if(position2open == true) { nnInputs[4] = 1; }
+                else { nnInputs[4] = 0; }
+
+                //Input 6 of 8: distance from position 0 to Goal
+                nnInputs[5] = calculateDistance(player.xPos,player.yPos+50,theGoal.x,theGoal.y)/50;
+
+                //Input 7 of 8: position 3 open or not
+                boolean position3open = aiCharacter.checkPositionValid(aiCharacter.xPos-50,aiCharacter.yPos);
+                if(position3open == true) { nnInputs[6] = 1; }
+                else { nnInputs[6] = 0; }
+
+                //Input 8 of 8: distance from position 0 to Goal
+                nnInputs[7] = calculateDistance(player.xPos-50,player.yPos,theGoal.x,theGoal.y)/50;
+
+                //STEP 2: simulate the neuralnet with the provided inputs
+                brain.runNeuralNetwork(nnInputs);
+
+                //STEP 3: choose the strongest result from the neuralnet
+                float highestChoice = 0;
+                int highestChoiceIndex = 0;
+
+                for(int i = 0; i < brain.outputArray.length; i++)
+                {
+                    if(brain.outputArray[i] > highestChoice)
+                    {
+                        highestChoice = brain.outputArray[i];
+                        highestChoiceIndex = i;
+                    }
+                }
+                //STEP 4: move to the chosen position
+                aiCharacter.move(highestChoiceIndex);
+
+                //STEP 5: check if its new position is valid (not hitting a wall)
+                boolean newPositionValid = checkSelfPositionValid();
+                if(newPositionValid == false || moveCounter > 100) {
+                    killAI();
+                }      
+            } else {
+                //AIcore is dead. do not move
+
+            }
         }
     }
     public void draw()
@@ -323,7 +257,66 @@ class AIcore
     public void killAI()
     {
         aiCoreIsAlive = false;
+        distanceToGoalOnDeath = calculateDistance(aiCharacter.xPos,aiCharacter.yPos,theGoal.x,theGoal.y);
+        amountOfMovesMadeBeforeDeath = moveCounter;
         aiCharacter.teleport(150,400);
+    }
+}
+class AIpopulation
+{
+    AIcore[] aiPopulation;
+    boolean entirePopulationIsDead;
+    AIcore theBest;
+    int amountOfAliveAIs;
+
+    //constructor
+    AIpopulation(int amountOfAIs,int[] nnConfig)
+    {
+        amountOfAliveAIs = amountOfAIs;
+        aiPopulation = new AIcore[amountOfAIs];
+        entirePopulationIsDead = false;
+        //generate a bunch of random AIs for this population
+        for(int i = 0; i < amountOfAIs; i++)
+        {
+            //firstly generate a random neuralnet 
+            NeuralNetwork randNN = generateRandomNeuralNetwork(nnConfig);
+            aiPopulation[i] = new AIcore(randNN);
+        }
+    }
+
+    //Simulate all AIs in this population
+    public void moveAllAIs()
+    {
+        int amountOfAliveAIPlayers = 0;
+        for(int i = 0; i < aiPopulation.length; i++)
+        {
+            aiPopulation[i].makeMoveAI();
+            if(aiPopulation[i].aiCoreIsAlive == true) {
+                amountOfAliveAIPlayers++;
+            }
+        }
+        amountOfAliveAIs = amountOfAliveAIPlayers;
+        //Also check if everyone has died
+        if(amountOfAliveAIs == 0) {
+            entirePopulationIsDead = true;
+        }
+    }
+    //After simulating all of them, select the best one
+    public void SelectChampionOfPopulation()
+    {
+        //after simulating all of them, select the champion based on how close it got to the goal
+        float closestGoalDistance = 99;
+        int closestGoalDistanceAIindex = 0;
+
+        for(int i = 0; i < aiPopulation.length; i++)
+        {
+            if(aiPopulation[i].distanceToGoalOnDeath < closestGoalDistance)
+            {
+                //we have a new champion
+                closestGoalDistanceAIindex = i;
+            }
+        }
+        theBest = aiPopulation[closestGoalDistanceAIindex];
     }
 }
 class Goal
@@ -407,8 +400,8 @@ class NeuralNetwork
     public void runNeuralNetwork(float[] nnInputs)
     {
         //do the input layers first - plug the provided nnInputs into the nn input neurons
-        println("Simulate the Nerual Network INPUT: ");
-        printArray(nnInputs);
+        // println("Simulate the Nerual Network INPUT: ");
+        // printArray(nnInputs);
 
         //do all the neurons in the first layer first
         for(int n = 0; n < neuralNetwork[0].getNNlayer().length; n++)
@@ -448,8 +441,8 @@ class NeuralNetwork
             outArray[i] = neuralNetwork[neuralNetwork.length-1].getNNlayer()[i].output;
         }
 
-        println("Simulate the Nerual Network OUTPUT: ");
-        printArray(outArray);
+        // println("Simulate the Nerual Network OUTPUT: ");
+        // printArray(outArray);
 
         outputArray = outArray;
     }
@@ -763,7 +756,7 @@ class Player
             //move left
             xPos -= 50;
         }  
-        moveCounter++;
+        //moveCounter++;
     }
 
     public boolean checkPositionValid(int checkX, int checkY) {
@@ -852,6 +845,43 @@ public float[] generateRandomNN_Biases(int amount)
     }
 
     return randNNbiases;
+}
+
+public NeuralNetwork generateRandomNeuralNetwork(int[] nNetConfig)
+{
+    int amountOfMultipliers = 0;
+    int amountOfBiases = 0;
+
+    //figure out how many multipliers are needed
+    for(int l = 0; l < nNetConfig.length; l++)
+    {
+        if(l == 0)
+        {
+            //For the first layer, only 1 multiplier is needed per neuron
+            amountOfMultipliers += nNetConfig[0];
+        } else {
+            //For all other layers, each neuron needs the previous layers worth of neurons,
+            //so the entire layer needs (previousLayer)*(currentLayer) amount of multipliers
+            int currentLayerMultipliers = nNetConfig[l-1] * nNetConfig[l];
+
+            amountOfMultipliers += currentLayerMultipliers;
+        }
+    }
+    
+    //figure out how many biases are needed
+    //amount of biases needed = amount of neurons in the neural net
+    for(int l = 0; l < nNetConfig.length; l++)
+    {
+        amountOfBiases += nNetConfig[l];
+    }
+
+    //Now use the two randomizing functions above to generate some multipliers and biases
+    float[] nnMultipliers = generateRandomNN_Multipliers(amountOfMultipliers);
+    float[] nnBiases = generateRandomNN_Biases(amountOfBiases);
+
+    NeuralNetwork randomNeuralNet = new NeuralNetwork(nNetConfig,nnMultipliers,nnBiases);
+
+    return randomNeuralNet;
 }
   public void settings() {  size(900,700); }
   static public void main(String[] passedArgs) {

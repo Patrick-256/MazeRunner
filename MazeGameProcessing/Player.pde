@@ -31,7 +31,7 @@ class Player
             //move left
             xPos -= 50;
         }  
-        moveCounter++;
+        //moveCounter++;
     }
 
     boolean checkPositionValid(int checkX, int checkY) {
@@ -63,7 +63,6 @@ class Player
     {
         xPos = gameBounds[3] + destinationX;
         yPos = gameBounds[0] + destinationY;
-        moveCounter = 0;
     }
 
     void draw() {

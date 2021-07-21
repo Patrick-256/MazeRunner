@@ -6,104 +6,15 @@ int moveCounter;
 boolean gameWon = false;
 
 Player player;
-//Player ai;
 
-//test arraylists
-ArrayList<ArrayList> testInts;
-ArrayList<String> actStrings;
-ArrayList<String> actStrings2;
-
-//test neural networks
-ArrayList<Integer> nnConfig;
-ArrayList<Float> nnMultipliers;
-ArrayList<Float> nnBiases;
 NeuralNetwork testNeuralNet;
 
-int empty;
-
 AIcore aiTestbot;
+AIpopulation testPop;
 
 void setup()
 {
-    //test arraylists
-    actStrings = new ArrayList <String>();
-    actStrings2 = new ArrayList <String>();
-    actStrings.add("actStr0");
-    actStrings.add("actStr1");
-    actStrings2.add("2actStr0");
-    actStrings2.add("2actStr1");
-    testInts = new ArrayList <ArrayList>();
-    testInts.add(actStrings);
-    testInts.add(actStrings2);
-    println(testInts);
-    println(testInts.get(0).get(1));
-
-
-
-
-    //test neural networks
-    int[] nnConfig = { 8,4 };
-    println("nnConfig: "+nnConfig);
-    printArray(nnConfig);
-
-    //Generate a random neural net (confined to config defined above)
-    float[] nnMultipliers = generateRandomNN_Multipliers(40); //new float[40];
-    // for(int m = 0; m < 40; m++) {
-    //     nnMultipliers[m] = 0.5;
-    // }
-
-    // println("nnMultipliers: -----------------------------------");
-    // printArray(nnMultipliers);
-
-    float[] nnBiases = generateRandomNN_Biases(12); //new float[12];
-    // for(int b = 0; b < 12; b++) {
-    //     nnBiases[b] = 0.1;
-    // }
-
-    // println("nnBiases: ----------------");
-    // printArray(nnBiases);
-
-    testNeuralNet = new NeuralNetwork(nnConfig,nnMultipliers,nnBiases);
-    // float[] inputs = { 1, 10, 1, 10.5, 1, 11, 1, 9.6};
-    // printArray(inputs);
-    // testNeuralNet.runNeuralNetwork(inputs);
-
-    
-
-    // //ArrayList version
-    // //test neural networks
-    // nnConfig = new ArrayList <Integer>();
-    // nnConfig.add(8);
-    // nnConfig.add(4);
-    // println("nnConfig: "+nnConfig);
-
-    // nnMultipliers = new ArrayList <Float>();
-    // for(int m = 0; m < 40; m++) {
-    //     nnMultipliers.add(0.5);
-    // }
-    // println("nnMultipliers: "+nnMultipliers);
-
-    // nnBiases = new ArrayList <Float>();
-    // for(int b = 0; b < 12; b++) {
-    //     nnBiases.add(0.1);
-    // }
-    // println("nnBiases: "+nnBiases);
-
-    // testNeuralNet = new NeuralNetwork(nnConfig,nnMultipliers,nnBiases);
-    // println("empty: "+empty);
-    // float e = exp(1);
-    // float squish = 1 /(1 + exp(8.5));
-    // println("squishy = "+squish);
-
-    // float x = 5.936;
-    // int cas = (int) x;
-    // println("cast = "+cas);
-
-
-
-
-
-    frameRate(1);
+    frameRate(2);
 
     size(900,700);
     background(100);
@@ -114,10 +25,15 @@ void setup()
     moveCounter = 0;
 
     player = new Player(150,400,76,145,156);
-    // ai = new Player(150,400,76,0,156);
 
+    //test neural networks
+    int[] nnConfig = { 8,4 };
+    println("nnConfig: "+nnConfig);
+    printArray(nnConfig);
     //test AI - give it the randomly generated neural net from above
+    testNeuralNet = generateRandomNeuralNetwork(nnConfig);
     aiTestbot = new AIcore(testNeuralNet);
+    testPop = new AIpopulation(10000,nnConfig);
     
 }
 
@@ -135,6 +51,8 @@ void draw()
     text("Game Won: "+gameWon,425,150);
     text("Goal location x: "+theGoal.x+" y: "+theGoal.y,425,170);
     text("Player location x: "+player.xPos+" y: "+player.yPos,425,190);
+    text("AI location x: "+aiTestbot.aiCharacter.xPos+" y: "+aiTestbot.aiCharacter.yPos,425,210);
+    text("Population remaining AIs: "+testPop.amountOfAliveAIs,425,230);
 
 
     //draw the boundaries
@@ -163,8 +81,9 @@ void draw()
     //draw the Players
     player.draw();
     
-    aiTestbot.draw();
+    //aiTestbot.draw();
     aiTestbot.makeMoveAI();
+    testPop.moveAllAIs();
 
     gameWon = theGoal.checkIfCollided(player.xPos,player.yPos);
 
@@ -172,11 +91,8 @@ void draw()
     {
         player.teleport(150,400);
     }
-    if(aiTestbot.checkSelfPositionValid() == false)
-    {
-        //ai has hit a wall.
-        aiTestbot.killAI();
-    }
+    
+    moveCounter++;
 }
 
 void keyPressed()
