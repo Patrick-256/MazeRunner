@@ -16,31 +16,35 @@ public class MazeGameProcessing extends PApplet {
 
 //2021-07-07 Going to try to recreate my maze game in Processing
 Wall[] daWalls = new Wall[2];
+Wall[] daOnlyWalls = new Wall[2];
 int[] gameBounds = {100,350,600,100};
 Goal theGoal;
-int moveCounter;
+int currentTick;
+
 boolean gameWon = false;
 
-Player player;
+//Player player;
+AIcore aiCore;
+boolean aiCoreTime = false;
 
 NeuralNetwork testNeuralNet;
+NeuralNetwork mutNeuralNet;
 
-AIcore aiTestbot;
 AIpopulation testPop;
+int[] nnConfig;
 
 public void setup()
 {
-    frameRate(2);
-
+    frameRate(10);
+    currentTick = 0;
+    //set up the game
     
     background(100);
-    daWalls[0] = new Wall(0,150,3,1);
-    daWalls[1] = new Wall(50,300,4,1);
-
+    daOnlyWalls[0] = new Wall(0,150,3,1);
+    daOnlyWalls[1] = new Wall(50,300,4,1);
     theGoal = new Goal(100,0);
-    moveCounter = 0;
+    //player = new Player(150,400,76,145,156);
 
-    player = new Player(150,400,76,145,156);
 
     //test neural networks
     int[] nnConfig = { 8,4 };
@@ -48,9 +52,13 @@ public void setup()
     printArray(nnConfig);
     //test AI - give it the randomly generated neural net from above
     testNeuralNet = generateRandomNeuralNetwork(nnConfig);
-    aiTestbot = new AIcore(testNeuralNet);
-    testPop = new AIpopulation(10000,nnConfig);
-    
+    testNeuralNet.print();
+    //test mutate NN
+    mutNeuralNet = mutateNeuralNetwork(testNeuralNet,0.1f);
+    mutNeuralNet.print();
+
+    //aiTestbot = new AIcore(testNeuralNet);
+    testPop = new AIpopulation(100,nnConfig,0,null);
 }
 
 public void draw()
@@ -59,17 +67,41 @@ public void draw()
 
     //Draw static text
     textSize(20);
-    text("Move # "+moveCounter,50,40);
-    text("Position 0: "+player.checkPositionValid(player.xPos,player.yPos-50)+" "+calculateDistance(player.xPos,player.yPos-50,theGoal.x,theGoal.y)/50,425,70);
-    text("Position 1: "+player.checkPositionValid(player.xPos+50,player.yPos)+" "+calculateDistance(player.xPos+50,player.yPos,theGoal.x,theGoal.y)/50,425,90);
-    text("Position 2: "+player.checkPositionValid(player.xPos,player.yPos+50)+" "+calculateDistance(player.xPos,player.yPos+50,theGoal.x,theGoal.y)/50,425,110);
-    text("Position 3: "+player.checkPositionValid(player.xPos-50,player.yPos)+" "+calculateDistance(player.xPos-50,player.yPos,theGoal.x,theGoal.y)/50,425,130);
+    text("CurrentTick # "+currentTick,50,40);
+    text("Population Move # "+testPop.moveCounter,250,40);
+    //text("Position 0: "+player.checkPositionValid(player.xPos,player.yPos-50)+" "+calculateDistance(player.xPos,player.yPos-50,theGoal.x,theGoal.y)/50,425,70);
+    //text("Position 1: "+player.checkPositionValid(player.xPos+50,player.yPos)+" "+calculateDistance(player.xPos+50,player.yPos,theGoal.x,theGoal.y)/50,425,90);
+    //text("Position 2: "+player.checkPositionValid(player.xPos,player.yPos+50)+" "+calculateDistance(player.xPos,player.yPos+50,theGoal.x,theGoal.y)/50,425,110);
+    //text("Position 3: "+player.checkPositionValid(player.xPos-50,player.yPos)+" "+calculateDistance(player.xPos-50,player.yPos,theGoal.x,theGoal.y)/50,425,130);
     text("Game Won: "+gameWon,425,150);
     text("Goal location x: "+theGoal.x+" y: "+theGoal.y,425,170);
-    text("Player location x: "+player.xPos+" y: "+player.yPos,425,190);
-    text("AI location x: "+aiTestbot.aiCharacter.xPos+" y: "+aiTestbot.aiCharacter.yPos,425,210);
+    //text("Player location x: "+player.xPos+" y: "+player.yPos,425,190);
+    //text("AI location x: "+aiTestbot.aiCharacter.xPos+" y: "+aiTestbot.aiCharacter.yPos,425,210);
     text("Population remaining AIs: "+testPop.amountOfAliveAIs,425,230);
+    text("AI generation: "+testPop.generation,425,250);
+    if(testPop.generation > 0) {
+        text("Closest Dist. To Goal: "+testPop.theBest.distanceToGoal/50,425,270);
+        text("most moves lasted: "+testPop.theBest.currentMove,425,290);
+    }
 
+    //loop through all the AIs in the population to find the one closest to the goal. make it red
+    float closestDistance = 2000;
+    int closestIndex = 0;
+    for(int i = testPop.popAmountOfAis-1; i >= 0; i--)
+    {
+        if(testPop.aiPopulation[i].distanceToGoal < closestDistance)
+        {
+            //we found a new (current) champion
+            closestDistance = testPop.aiPopulation[i].distanceToGoal;
+            closestIndex = i;
+        }
+    }
+    //now make the current best red
+    testPop.aiPopulation[closestIndex].aiCharacter.pcRED = 200;
+    testPop.aiPopulation[closestIndex].aiCharacter.pcBLU = 0;
+    testPop.aiPopulation[closestIndex].aiCharacter.pcGRE = 0;
+    text("closest distance: "+closestDistance/50,425,310);
+    //testPop.printPopulation();
 
     //draw the boundaries
     fill(50);
@@ -85,30 +117,54 @@ public void draw()
         rect(100,100,250,500);
     }
 
+    //if its the start of a new generation, make sure daWalls on have the two starter walls
+    daWalls = daOnlyWalls;
+    //draw the wall of evolution - increase every 20 rounds
+    if(testPop.moveCounter > 20) { Wall aNewWall = new Wall(0,450,5,1); daWalls = (Wall[]) append(daWalls,aNewWall); }
+    if(testPop.moveCounter > 40) { Wall aNewWall = new Wall(0,400,5,1); daWalls = (Wall[]) append(daWalls,aNewWall); }
+    if(testPop.moveCounter > 60) { Wall aNewWall = new Wall(0,350,5,1); daWalls = (Wall[]) append(daWalls,aNewWall); }
+    if(testPop.moveCounter > 80) { Wall aNewWall = new Wall(0,300,5,1); daWalls = (Wall[]) append(daWalls,aNewWall); }
+    if(testPop.moveCounter > 100) { Wall aNewWall = new Wall(0,250,5,1); daWalls = (Wall[]) append(daWalls,aNewWall); }
+    if(testPop.moveCounter > 120) { Wall aNewWall = new Wall(0,200,5,1); daWalls = (Wall[]) append(daWalls,aNewWall); }
+    if(testPop.moveCounter > 140) { Wall aNewWall = new Wall(0,150,5,1); daWalls = (Wall[]) append(daWalls,aNewWall); }
+
     //draw the walls
     for(int i = 0; i < daWalls.length; i++)
     {
         daWalls[i].draw();
     }
-
+    
     //draw the goal
     theGoal.draw();
 
     //draw the Players
-    player.draw();
+    //player.draw();
     
-    //aiTestbot.draw();
-    aiTestbot.makeMoveAI();
+    if(testPop.entirePopulationIsDead == true)
+    {
+        //generate the next generation
+        testPop.RepopulateNextGeneration();
+
+        // if(aiCoreTime == false)
+        // {
+        //     //spawn in that generations best
+        //     testPop.moveCounter = 0;
+        //     aiCore = new AIcore(testPop.theBest.brain);
+        //     println("Spawning the generation best!");
+        //     aiCore.printAIstats();
+        //     println("neuralNet details:");
+        //     aiCore.brain.print();
+        //     aiCoreTime = true;
+        // }
+        // aiCore.makeMoveAI();
+    }
+
+    
+
     testPop.moveAllAIs();
 
-    gameWon = theGoal.checkIfCollided(player.xPos,player.yPos);
-
-    if(player.checkPositionValid(player.xPos,player.yPos) == false)
-    {
-        player.teleport(150,400);
-    }
-    
-    moveCounter++;
+    //gameWon = theGoal.checkIfCollided(player.xPos,player.yPos);
+    currentTick++;
 }
 
 public void keyPressed()
@@ -124,19 +180,19 @@ public void keyPressed()
     {
         if (keyCode == LEFT)
         { 
-            player.move(3);
+            //player.move(3);
         }
         else if (keyCode == RIGHT)
         {
-            player.move(1);
+            //player.move(1);
         }
         else if (keyCode == UP)
         {
-            player.move(0);
+            //player.move(0);
         }
         else if (keyCode == DOWN)
         {
-            player.move(2);
+            //player.move(2);
         }
     }
 }
@@ -153,8 +209,8 @@ class AIcore
     NeuralNetwork brain;
     Player aiCharacter;
     boolean aiCoreIsAlive;
-    float distanceToGoalOnDeath;
-    int amountOfMovesMadeBeforeDeath;
+    float distanceToGoal;
+    int currentMove;
     boolean aiHasWonTheGame;
 
     //constructor
@@ -173,14 +229,15 @@ class AIcore
     //Make a move
     public void makeMoveAI()
     {
-        aiCharacter.draw();
-
         if(gameWon == true)
         {
+            //do not move AI if game has already been won
             aiHasWonTheGame = true;
         } else {
             if(aiCoreIsAlive == true)
             {
+                aiCharacter.draw();
+                currentMove++;
                 //STEP 1: Observe the AI's current position to generate the neuralnet input array
                 float[] nnInputs = new float[8];
 
@@ -190,7 +247,7 @@ class AIcore
                 else { nnInputs[0] = 0; }
 
                 //Input 2 of 8: distance from position 0 to Goal
-                nnInputs[1] = calculateDistance(player.xPos,player.yPos-50,theGoal.x,theGoal.y)/50;
+                nnInputs[1] = calculateDistance(aiCharacter.xPos,aiCharacter.yPos-50,theGoal.x,theGoal.y)/50;
 
                 //Input 3 of 8: position 1 open or not
                 boolean position1open = aiCharacter.checkPositionValid(aiCharacter.xPos+50,aiCharacter.yPos);
@@ -198,7 +255,7 @@ class AIcore
                 else { nnInputs[2] = 0; }
 
                 //Input 4 of 8: distance from position 0 to Goal
-                nnInputs[3] = calculateDistance(player.xPos+50,player.yPos,theGoal.x,theGoal.y)/50;
+                nnInputs[3] = calculateDistance(aiCharacter.xPos+50,aiCharacter.yPos,theGoal.x,theGoal.y)/50;
 
                 //Input 5 of 8: position 2 open or not
                 boolean position2open = aiCharacter.checkPositionValid(aiCharacter.xPos,aiCharacter.yPos+50);
@@ -206,7 +263,7 @@ class AIcore
                 else { nnInputs[4] = 0; }
 
                 //Input 6 of 8: distance from position 0 to Goal
-                nnInputs[5] = calculateDistance(player.xPos,player.yPos+50,theGoal.x,theGoal.y)/50;
+                nnInputs[5] = calculateDistance(aiCharacter.xPos,aiCharacter.yPos+50,theGoal.x,theGoal.y)/50;
 
                 //Input 7 of 8: position 3 open or not
                 boolean position3open = aiCharacter.checkPositionValid(aiCharacter.xPos-50,aiCharacter.yPos);
@@ -214,7 +271,7 @@ class AIcore
                 else { nnInputs[6] = 0; }
 
                 //Input 8 of 8: distance from position 0 to Goal
-                nnInputs[7] = calculateDistance(player.xPos-50,player.yPos,theGoal.x,theGoal.y)/50;
+                nnInputs[7] = calculateDistance(aiCharacter.xPos-50,aiCharacter.yPos,theGoal.x,theGoal.y)/50;
 
                 //STEP 2: simulate the neuralnet with the provided inputs
                 brain.runNeuralNetwork(nnInputs);
@@ -236,9 +293,12 @@ class AIcore
 
                 //STEP 5: check if its new position is valid (not hitting a wall)
                 boolean newPositionValid = checkSelfPositionValid();
-                if(newPositionValid == false || moveCounter > 100) {
+                if(newPositionValid == false) {
                     killAI();
-                }      
+                }  else {
+                    //its position is valid, so update its currentDistance from goal
+                    distanceToGoal = calculateDistance(aiCharacter.xPos,aiCharacter.yPos,theGoal.x,theGoal.y);
+                }    
             } else {
                 //AIcore is dead. do not move
 
@@ -247,7 +307,10 @@ class AIcore
     }
     public void draw()
     {
-        aiCharacter.draw();
+        //only draw live AIs
+        if(aiCoreIsAlive == true) {
+            aiCharacter.draw();
+        }
     }
     public boolean checkSelfPositionValid()
     {
@@ -257,30 +320,54 @@ class AIcore
     public void killAI()
     {
         aiCoreIsAlive = false;
-        distanceToGoalOnDeath = calculateDistance(aiCharacter.xPos,aiCharacter.yPos,theGoal.x,theGoal.y);
-        amountOfMovesMadeBeforeDeath = moveCounter;
-        aiCharacter.teleport(150,400);
+        //amountOfMovesMadeBeforeDeath = moveCounter;
+        //aiCharacter.teleport(150,400);
+    }
+    public void printAIstats()
+    {
+        //print: AI location, distance from goal, and current move count
+        float[] aiInfo = new float[4];
+        aiInfo[0] = aiCharacter.xPos;
+        aiInfo[1] = aiCharacter.yPos;
+        aiInfo[2] = distanceToGoal/50;
+        aiInfo[3] = currentMove;
+
+        println("AI stats:");
+        printArray(aiInfo);
+        println("AI brain:");
+        brain.print();
     }
 }
 class AIpopulation
 {
     AIcore[] aiPopulation;
+    int popAmountOfAis;
     boolean entirePopulationIsDead;
     AIcore theBest;
     int amountOfAliveAIs;
+    int generation;
+    int moveCounter;
 
     //constructor
-    AIpopulation(int amountOfAIs,int[] nnConfig)
+    AIpopulation(int amountOfAIs,int[] nnConfig,float seedMethod, NeuralNetwork modelNN)
     {
+        popAmountOfAis = amountOfAIs;
         amountOfAliveAIs = amountOfAIs;
         aiPopulation = new AIcore[amountOfAIs];
         entirePopulationIsDead = false;
-        //generate a bunch of random AIs for this population
-        for(int i = 0; i < amountOfAIs; i++)
+        if(seedMethod == 0)
         {
-            //firstly generate a random neuralnet 
-            NeuralNetwork randNN = generateRandomNeuralNetwork(nnConfig);
-            aiPopulation[i] = new AIcore(randNN);
+            //generate a bunch of random AIs for this population
+            for(int i = 0; i < amountOfAIs; i++)
+            {
+                //firstly generate a random neuralnet 
+                NeuralNetwork randNN = generateRandomNeuralNetwork(nnConfig);
+                aiPopulation[i] = new AIcore(randNN);
+            }
+            generation = 0;
+            moveCounter = 0;
+        } else {
+            //nothing for now
         }
     }
 
@@ -298,25 +385,93 @@ class AIpopulation
         amountOfAliveAIs = amountOfAliveAIPlayers;
         //Also check if everyone has died
         if(amountOfAliveAIs == 0) {
+            SelectChampionOfPopulation();
             entirePopulationIsDead = true;
         }
+        moveCounter++;
     }
+
     //After simulating all of them, select the best one
     public void SelectChampionOfPopulation()
     {
         //after simulating all of them, select the champion based on how close it got to the goal
-        float closestGoalDistance = 99;
+        float closestGoalDistance = 9999;
         int closestGoalDistanceAIindex = 0;
-
+        
         for(int i = 0; i < aiPopulation.length; i++)
         {
-            if(aiPopulation[i].distanceToGoalOnDeath < closestGoalDistance)
+            if(aiPopulation[i].distanceToGoal < closestGoalDistance)
             {
                 //we have a new champion
                 closestGoalDistanceAIindex = i;
+                closestGoalDistance = aiPopulation[i].distanceToGoal;
             }
         }
+        //or, select champion based on most rounds survived (to be used with the expanding wall of evolution)
+        int longestMovesLasted = 0;
+        int longestMovesIndex = 0;
+        for(int i = 0; i < aiPopulation.length; i++)
+        {
+            if(aiPopulation[i].currentMove > longestMovesLasted)
+            {
+                //we have a new champion
+                longestMovesIndex = i;
+                longestMovesLasted = aiPopulation[i].currentMove;
+            }
+        }
+
         theBest = aiPopulation[closestGoalDistanceAIindex];
+    }
+    //repopulate with mutations of previous best
+    public void RepopulateNextGeneration()
+    {
+        println("Generation "+generation+" complete! best AI:");
+        theBest.printAIstats();
+
+        AIcore[] theNextGeneration = new AIcore[popAmountOfAis];
+
+        generation++;
+        entirePopulationIsDead = false;
+        amountOfAliveAIs = popAmountOfAis;
+        moveCounter = 0;
+
+
+        //Calculate max mutation step size
+        float stepSize = 0.01f;
+        // if(generation > 0) {
+        //    stepSize = stepSize / generation;
+
+        //    if(stepSize < 0.01) {
+        //        stepSize = 0.01;
+        //    }
+        // }
+
+        //generate a bunch of AIs that are similar to the provided model neural network
+        for(int i = 0; i < popAmountOfAis-1; i++)
+        {
+            theNextGeneration[i] = new AIcore(theBest.brain);//new AIcore(mutateNeuralNetwork(theBest.brain,stepSize));
+        }
+
+        theNextGeneration[popAmountOfAis-1] = new AIcore(theBest.brain); //the last one will be the previous Generations best
+        //Also make the last gen champion green
+        theNextGeneration[popAmountOfAis-1].aiCharacter.pcRED = 0;
+        theNextGeneration[popAmountOfAis-1].aiCharacter.pcBLU = 0;
+        theNextGeneration[popAmountOfAis-1].aiCharacter.pcGRE = 200;
+
+        println("TESTING placement of BestAI in new generation:");
+        theNextGeneration[popAmountOfAis-1].printAIstats();
+
+        aiPopulation = theNextGeneration;
+    }
+    public void printPopulation()
+    {
+        println("Population Total AIs: "+popAmountOfAis);
+        println("Amount of AIs still alive: "+amountOfAliveAIs);
+        println("current move: "+moveCounter);
+        for(int i = 0; i < aiPopulation.length; i++)
+        {
+            aiPopulation[i].printAIstats();
+        }
     }
 }
 class Goal
@@ -349,10 +504,12 @@ class NeuralNetwork
 {
     NeuralNetLayer[] neuralNetwork;
     float[] outputArray;
+    int[] nnConfig;
 
     //constructor - build a new neural network
     NeuralNetwork(int[] nueralNetLayerConfig, float[] neuralNetMultipliers, float[] neuralNetBiases)
     {
+        nnConfig = nueralNetLayerConfig;
         neuralNetwork = new NeuralNetLayer[nueralNetLayerConfig.length];
         //Start at the input layer
         int neuronID = 0;     //used for the biases
@@ -388,6 +545,7 @@ class NeuralNetwork
                 //now create the neuron with the array of inputs and the bias
                 neuron = new Neuron(neuronInputs,neuralNetBiases[neuronID]);
                 neuralNetLayer[n] = neuron;
+                neuronID++;
             }
             neuralNetwork[l] = new NeuralNetLayer(neuralNetLayer);
         }
@@ -445,6 +603,60 @@ class NeuralNetwork
         // printArray(outArray);
 
         outputArray = outArray;
+    }
+    public void print()
+    {
+        int amountOfMultipliers = 0;
+        int amountOfBiases = 0;
+        //figure out how many multipliers are needed
+        for(int l = 0; l < nnConfig.length; l++)
+        {
+            if(l == 0)
+            {
+                //For the first layer, only 1 multiplier is needed per neuron
+                amountOfMultipliers += nnConfig[0];
+            } else {
+                //For all other layers, each neuron needs the previous layers worth of neurons,
+                //so the entire layer needs (previousLayer)*(currentLayer) amount of multipliers
+                int currentLayerMultipliers = nnConfig[l-1] * nnConfig[l];
+
+                amountOfMultipliers += currentLayerMultipliers;
+            }
+        }
+        //figure out how many biases are needed
+        //amount of biases needed = amount of neurons in the neural net
+        for(int l = 0; l < nnConfig.length; l++)
+        {
+            amountOfBiases += nnConfig[l];
+        }
+
+        //build an array of the neuron multipliers and biases
+        float[] multipliers = new float[amountOfMultipliers];
+        int mi = 0;
+        float[] biases = new float[amountOfBiases];
+        int bi = 0;
+
+        //go through each neuron, record its bias, and each of the neurons connection multipliers
+        for(int l = 0; l < neuralNetwork.length; l++)
+        {
+            //do all the neurons in the layer
+            for(int n = 0; n < neuralNetwork[l].getNNlayer().length; n++)
+            {
+                //for each connection in the neuron, record its multiplier
+                for(int c = 0; c < neuralNetwork[l].getNNlayer()[n].neuronInputs.length; c++)
+                {
+                    multipliers[mi] = neuralNetwork[l].getNNlayer()[n].neuronInputs[c].multiplier;
+                    mi++;
+                }
+                //record the bais
+                biases[bi] = neuralNetwork[l].getNNlayer()[n].bias;
+                bi++;
+            }
+        }
+        println("NeuralNet Multipliers:");
+        printArray(multipliers);
+        println("NeuralNet Biases:");
+        printArray(biases);
     }
 }
 
@@ -788,13 +1000,12 @@ class Player
     {
         xPos = gameBounds[3] + destinationX;
         yPos = gameBounds[0] + destinationY;
-        moveCounter = 0;
     }
 
     public void draw() {
         //player body (just a blue square)
         //fill(76, 145, 156);
-        fill(pcRED,pcBLU,pcGRE);
+        fill(pcRED,pcGRE,pcBLU);
         rect(xPos,yPos,50,50);
         //Player face details
         fill(0);
@@ -829,7 +1040,7 @@ public float[] generateRandomNN_Multipliers(int amount)
 
     for(int i = 0; i < amount; i++)
     {
-        randNNmultipliers[i] = random(1);
+        randNNmultipliers[i] = random(-1,1);
     }
 
     return randNNmultipliers;
@@ -841,7 +1052,7 @@ public float[] generateRandomNN_Biases(int amount)
 
     for(int i = 0; i < amount; i++)
     {
-        randNNbiases[i] = random(1);
+        randNNbiases[i] = random(-0.5f,0.5f);
     }
 
     return randNNbiases;
@@ -882,6 +1093,47 @@ public NeuralNetwork generateRandomNeuralNetwork(int[] nNetConfig)
     NeuralNetwork randomNeuralNet = new NeuralNetwork(nNetConfig,nnMultipliers,nnBiases);
 
     return randomNeuralNet;
+}
+
+public NeuralNetwork mutateNeuralNetwork(NeuralNetwork neuralNetwork,float stepChange)
+{
+    //go through each neuron, slightly modify the bias, and slightly modify each of the neurons connections
+    for(int l = 0; l < neuralNetwork.neuralNetwork.length; l++)
+    {
+        //do all the neurons in the layer
+        for(int n = 0; n < neuralNetwork.neuralNetwork[l].getNNlayer().length; n++)
+        {
+            //for each connection in the neuron, randomly change its multiplier a little bit
+            for(int c = 0; c < neuralNetwork.neuralNetwork[l].getNNlayer()[n].neuronInputs.length; c++)
+            {
+                float randNumber = random(3);
+                float originalMultiplier = neuralNetwork.neuralNetwork[l].getNNlayer()[n].neuronInputs[c].multiplier;
+                float newMultiplier;
+                if(randNumber < 1) {
+                    newMultiplier = originalMultiplier - stepChange;
+                } else if(randNumber < 2) {
+                    newMultiplier = originalMultiplier;
+                } else {
+                    newMultiplier = originalMultiplier + stepChange;
+                }
+                
+                neuralNetwork.neuralNetwork[l].getNNlayer()[n].neuronInputs[c].multiplier = newMultiplier;
+            }
+            //for the bais, randomly change it a little bit
+            float randNumber = random(3);
+            float originalBias = neuralNetwork.neuralNetwork[l].getNNlayer()[n].bias;
+            float newBias;
+            if(randNumber < 1) {
+                newBias = originalBias - stepChange;
+            } else if(randNumber < 2) {
+                newBias = originalBias;
+            } else {
+                newBias = originalBias + stepChange;
+            }
+            neuralNetwork.neuralNetwork[l].getNNlayer()[n].bias = newBias;
+        }
+    }
+    return neuralNetwork;
 }
   public void settings() {  size(900,700); }
   static public void main(String[] passedArgs) {

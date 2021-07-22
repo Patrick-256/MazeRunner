@@ -68,7 +68,7 @@ class Player
     void draw() {
         //player body (just a blue square)
         //fill(76, 145, 156);
-        fill(pcRED,pcBLU,pcGRE);
+        fill(pcRED,pcGRE,pcBLU);
         rect(xPos,yPos,50,50);
         //Player face details
         fill(0);

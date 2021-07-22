@@ -2,10 +2,12 @@ class NeuralNetwork
 {
     NeuralNetLayer[] neuralNetwork;
     float[] outputArray;
+    int[] nnConfig;
 
     //constructor - build a new neural network
     NeuralNetwork(int[] nueralNetLayerConfig, float[] neuralNetMultipliers, float[] neuralNetBiases)
     {
+        nnConfig = nueralNetLayerConfig;
         neuralNetwork = new NeuralNetLayer[nueralNetLayerConfig.length];
         //Start at the input layer
         int neuronID = 0;     //used for the biases
@@ -41,6 +43,7 @@ class NeuralNetwork
                 //now create the neuron with the array of inputs and the bias
                 neuron = new Neuron(neuronInputs,neuralNetBiases[neuronID]);
                 neuralNetLayer[n] = neuron;
+                neuronID++;
             }
             neuralNetwork[l] = new NeuralNetLayer(neuralNetLayer);
         }
@@ -98,6 +101,60 @@ class NeuralNetwork
         // printArray(outArray);
 
         outputArray = outArray;
+    }
+    void print()
+    {
+        int amountOfMultipliers = 0;
+        int amountOfBiases = 0;
+        //figure out how many multipliers are needed
+        for(int l = 0; l < nnConfig.length; l++)
+        {
+            if(l == 0)
+            {
+                //For the first layer, only 1 multiplier is needed per neuron
+                amountOfMultipliers += nnConfig[0];
+            } else {
+                //For all other layers, each neuron needs the previous layers worth of neurons,
+                //so the entire layer needs (previousLayer)*(currentLayer) amount of multipliers
+                int currentLayerMultipliers = nnConfig[l-1] * nnConfig[l];
+
+                amountOfMultipliers += currentLayerMultipliers;
+            }
+        }
+        //figure out how many biases are needed
+        //amount of biases needed = amount of neurons in the neural net
+        for(int l = 0; l < nnConfig.length; l++)
+        {
+            amountOfBiases += nnConfig[l];
+        }
+
+        //build an array of the neuron multipliers and biases
+        float[] multipliers = new float[amountOfMultipliers];
+        int mi = 0;
+        float[] biases = new float[amountOfBiases];
+        int bi = 0;
+
+        //go through each neuron, record its bias, and each of the neurons connection multipliers
+        for(int l = 0; l < neuralNetwork.length; l++)
+        {
+            //do all the neurons in the layer
+            for(int n = 0; n < neuralNetwork[l].getNNlayer().length; n++)
+            {
+                //for each connection in the neuron, record its multiplier
+                for(int c = 0; c < neuralNetwork[l].getNNlayer()[n].neuronInputs.length; c++)
+                {
+                    multipliers[mi] = neuralNetwork[l].getNNlayer()[n].neuronInputs[c].multiplier;
+                    mi++;
+                }
+                //record the bais
+                biases[bi] = neuralNetwork[l].getNNlayer()[n].bias;
+                bi++;
+            }
+        }
+        println("NeuralNet Multipliers:");
+        printArray(multipliers);
+        println("NeuralNet Biases:");
+        printArray(biases);
     }
 }
 
